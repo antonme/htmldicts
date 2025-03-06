@@ -204,7 +204,7 @@ The recommended way to deploy this service is using Docker Compose, which manage
 
 3. Access the API:
    - API endpoints are available at `http://localhost:8100/`
-   - Meilisearch admin interface is available at `http://localhost:7700/`
+   - Meilisearch admin interface is available at `http://localhost:7701/`
 
 #### Managing the Deployment
 
