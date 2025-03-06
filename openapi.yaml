@@ -1,0 +1,423 @@
+openapi: 3.1.0
+info:
+  title: Dictionary Search API
+  description: |
+    OpenAPI-compliant dictionary search server supporting English, Russian, and Ossetian.
+    This API provides full-text search with typo tolerance in a collection of dictionaries.
+
+    ## Transliteration Support
+    The API includes automatic transliteration between Latin and Cyrillic scripts for Ossetian terms.
+    This means you can search for terms like "tærqūs" or "тæрхъус" and find relevant results regardless
+    of which script was used in the original dictionary entries.
+
+    The transliteration system includes support for scholarly transcription conventions:
+    - Both æ and ä forms are recognized
+    - Glottal stops marked with apostrophes (k', p', t', c')
+    - Specialized notation for labialized velar consonants (kẜyd, gẜyr, k'ẜym)
+    - Support for the specialized character ә for Cyrillic у
+    - Enhanced typo tolerance for common character variations
+
+    Transliteration is enabled by default but can be disabled using the `transliteration` parameter.
+
+    ## Available Dictionaries
+    The API searches across the following dictionaries:
+
+    ### ИСТОРИКО-ЭТИМОЛОГИЧЕСКИЙ СЛОВАРЬ ОСЕТИНСКОГО ЯЗЫКА by В.И.АБАЕВ
+    - ТОМ 1 (A-K) - 1958
+    - ТОМ 2 (L-R) - 1973
+    - ТОМ 3 (S-T) - 1979
+    - ТОМ 4 (U-Z) - 1989
+
+    ### Толковые словари
+    - Толковый словарь осетинского языка, Том 1 (ред. Габараев Н.Я.) - 2007
+    - Толковый словарь осетинского языка, Том 2 (ред. Габараев Н.Я.) - 2010
+
+    ### Словари пословиц и поговорок
+    - Осетинские пословицы и поговорки - 1976
+    - Осетинские пословицы и поговорки - 1977
+    - Осетинские пословицы и поговорки (Айларов И.Х.) - 2006
+    - Осетинские дигорские народные изречения - 2011
+
+    ### Специализированные словари
+    - Названия растений в осетинском языке (Техов Ф.Д.) - 1979
+    - Лексика народной медицины осетин (Дзабиев З.Т.) - 1981
+    - Народная медицинская терминология осетин (Джабиев З.П.) - 2018
+    - Краткий словарь литературных терминов - 1971
+    - Происхождение фамилий Дигорского ущелья (Гецати А.А.) - 1999
+    - Осетинские фамилии (Гаглоева З.Д.) - 2017
+
+  version: 1.0.0
+servers:
+  - url: http://htmldicts.setia.dev:8100
+    description: Dictionary Search API server
+paths:
+  /search-html:
+    get:
+      summary: Unified search endpoint
+      description: |
+        Search endpoint that accepts a query parameter and returns dictionary entries matching the query.
+        Supports English, Russian, and Ossetian queries.
+        
+        Transliteration between Latin and Cyrillic scripts for Ossetian terms is enabled by default,
+        allowing you to find matches regardless of which script is used.
+      parameters:
+        - name: query
+          in: query
+          description: Search query (term or phrase, supports English, Russian, and Ossetian)
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results to return (1-50)
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+        - name: transliteration
+          in: query
+          description: Enable transliteration between Latin and Cyrillic scripts for Ossetian terms
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: context_size
+          in: query
+          description: Size of context to return ('default', 'expanded', or 'full')
+          required: false
+          schema:
+            type: string
+            default: "default"
+            enum: ["default", "expanded", "full"]
+        - name: source
+          in: query
+          description: Filter results by dictionary source (filename or part of it)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful search response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+              examples:
+                latin_script_search:
+                  summary: Search with Latin script Ossetian term
+                  value:
+                    query: "tærqūs"
+                    total_hits: 3
+                    processing_time_ms: 42
+                    results:
+                      - term: "тæрхъус / tærqūs"
+                        definition: "заяц (лат. Lepus); тæрхъусы хуылфы дзыккæ – внутренняя мякоть зайца"
+                        score: 0.91
+                        source: "ИСТОРИКО-ЭТИМОЛОГИЧЕСКИЙ СЛОВАРЬ ОСЕТИНСКОГО ЯЗЫКА - ТОМ 3 - S-T' - 1979 - В.И.АБАЕВ"
+                      - term: "тæрхъусы лæппын / tærqūsy læppyn"
+                        definition: "зайчонок"
+                        score: 0.83
+                        source: "Толковый словарь осетинского языка Том 2 под редакцией Габараева Н.Я. 2010"
+                cyrillic_script_search:
+                  summary: Search with Cyrillic script Ossetian term
+                  value:
+                    query: "тæрхъус"
+                    total_hits: 3
+                    processing_time_ms: 38
+                    results:
+                      - term: "тæрхъус / tærqūs"
+                        definition: "заяц (лат. Lepus); тæрхъусы хуылфы дзыккæ – внутренняя мякоть зайца"
+                        score: 0.91
+                        source: "ИСТОРИКО-ЭТИМОЛОГИЧЕСКИЙ СЛОВАРЬ ОСЕТИНСКОГО ЯЗЫКА - ТОМ 3 - S-T' - 1979 - В.И.АБАЕВ"
+                      - term: "тæрхъусы лæппын / tærqūsy læppyn"
+                        definition: "зайчонок"
+                        score: 0.83
+                        source: "Толковый словарь осетинского языка Том 2 под редакцией Габараева Н.Я. 2010"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Search engine unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Unified search endpoint (POST method)
+      description: |
+        POST version of the search endpoint that accepts a JSON body with the query.
+        This is the most reliable way to handle non-ASCII characters.
+        Supports English, Russian, and Ossetian queries.
+        
+        Transliteration between Latin and Cyrillic scripts for Ossetian terms is enabled by default,
+        allowing you to find matches regardless of which script is used.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: Search query (term or phrase, supports English, Russian, and Ossetian)
+                limit:
+                  type: integer
+                  description: Maximum number of results to return (1-50)
+                  default: 10
+                  minimum: 1
+                  maximum: 50
+                transliteration:
+                  type: boolean
+                  description: Enable transliteration between Latin and Cyrillic scripts for Ossetian terms
+                  default: true
+                context_size:
+                  type: string
+                  description: Size of context to return ('default', 'expanded', or 'full')
+                  default: "default"
+                  enum: ["default", "expanded", "full"]
+                source:
+                  type: string
+                  description: Filter results by dictionary source (filename or part of it)
+            examples:
+              latin_search:
+                summary: Search using Latin script
+                value:
+                  query: "tærqūs"
+              cyrillic_search:
+                summary: Search using Cyrillic script
+                value:
+                  query: "тæрхъус"
+              search_with_parameters:
+                summary: Search with custom parameters
+                value:
+                  query: "тæрхъус"
+                  limit: 5
+                  transliteration: false
+      responses:
+        '200':
+          description: Successful search response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Search engine unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /health:
+    get:
+      summary: API Health Check
+      description: Check if the API and search engine are operational
+      responses:
+        '200':
+          description: API and search engine are operational
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  message:
+                    type: string
+                    example: "API and search engine are operational"
+        '503':
+          description: Search engine unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /search-html/{query}:
+    get:
+      summary: Search with path parameter
+      description: |
+        Search endpoint that accepts the query as a path parameter and returns dictionary entries matching the query.
+        Supports English, Russian, and Ossetian queries.
+        
+        Transliteration between Latin and Cyrillic scripts for Ossetian terms is enabled by default,
+        allowing you to find matches regardless of which script is used.
+      parameters:
+        - name: query
+          in: path
+          description: Search query (term or phrase, supports English, Russian, and Ossetian)
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results to return (1-50)
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+        - name: transliteration
+          in: query
+          description: Enable transliteration between Latin and Cyrillic scripts for Ossetian terms
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: context_size
+          in: query
+          description: Size of context to return ('default', 'expanded', or 'full')
+          required: false
+          schema:
+            type: string
+            default: "default"
+            enum: ["default", "expanded", "full"]
+        - name: source
+          in: query
+          description: Filter results by dictionary source (filename or part of it)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful search response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+              examples:
+                cyrillic_script_search:
+                  summary: Search with Cyrillic script Ossetian term
+                  value:
+                    query: "тæрхъус"
+                    total_hits: 3
+                    processing_time_ms: 38
+                    results:
+                      - term: "тæрхъус / tærqūs"
+                        definition: "заяц (лат. Lepus); тæрхъусы хуылфы дзыккæ – внутренняя мякоть зайца"
+                        score: 0.91
+                        source: "ИСТОРИКО-ЭТИМОЛОГИЧЕСКИЙ СЛОВАРЬ ОСЕТИНСКОГО ЯЗЫКА - ТОМ 3 - S-T' - 1979 - В.И.АБАЕВ"
+                      - term: "тæрхъусы лæппын / tærqūsy læppyn"
+                        definition: "зайчонок"
+                        score: 0.83
+                        source: "Толковый словарь осетинского языка Том 2 под редакцией Габараева Н.Я. 2010"
+                latin_script_search:
+                  summary: Search with Latin script Ossetian term
+                  value:
+                    query: "tærqūs"
+                    total_hits: 3
+                    processing_time_ms: 42
+                    results:
+                      - term: "тæрхъус / tærqūs"
+                        definition: "заяц (лат. Lepus); тæрхъусы хуылфы дзыккæ – внутренняя мякоть зайца"
+                        score: 0.91
+                        source: "ИСТОРИКО-ЭТИМОЛОГИЧЕСКИЙ СЛОВАРЬ ОСЕТИНСКОГО ЯЗЫКА - ТОМ 3 - S-T' - 1979 - В.И.АБАЕВ"
+                      - term: "тæрхъусы лæппын / tærqūsy læppyn"
+                        definition: "зайчонок"
+                        score: 0.83
+                        source: "Толковый словарь осетинского языка Том 2 под редакцией Габараева Н.Я. 2010"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Search engine unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    SearchResult:
+      type: object
+      required:
+        - term
+        - definition
+        - score
+        - source
+      properties:
+        term:
+          type: string
+          description: Dictionary term
+        definition:
+          type: string
+          description: Definition or explanation of the term
+        expanded_context:
+          type: string
+          description: Extended context around the term, showing more of the dictionary content
+        score:
+          type: number
+          format: float
+          description: Relevance score
+        source:
+          type: string
+          description: Source dictionary
+    SearchResponse:
+      type: object
+      required:
+        - query
+        - total_hits
+        - processing_time_ms
+        - results
+      properties:
+        query:
+          type: string
+          description: Original search query
+        total_hits:
+          type: integer
+          description: Total number of matching entries
+        processing_time_ms:
+          type: integer
+          description: Processing time in milliseconds
+        context_size:
+          type: string
+          description: The size of context returned ('default', 'expanded', or 'full')
+        results:
+          type: array
+          description: Search results
+          items:
+            $ref: '#/components/schemas/SearchResult'
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - detail
+      properties:
+        error:
+          type: string
+          description: Error type
+        detail:
+          type: string
+          description: Error details 

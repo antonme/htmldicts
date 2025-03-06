@@ -1,0 +1,5 @@
+Dicts
+.DS*
+__pycache__
+.cursor
+.pytest*

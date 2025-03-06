@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8100:8100"
+    depends_on:
+      - meilisearch
+    volumes:
+      - ./Dicts:/app/Dicts
+    restart: unless-stopped
+    environment:
+      - MEILISEARCH_HOST=http://meilisearch:7700
+
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+    environment:
+      # Optional: Uncomment to set a master key in production
+      # - MEILI_MASTER_KEY=your_master_key
+      - MEILI_NO_ANALYTICS=true
+    restart: unless-stopped
+
+volumes:
+  meili_data:
+    driver: local 
