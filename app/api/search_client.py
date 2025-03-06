@@ -10,13 +10,14 @@ def get_search_index():
     """Get the Meilisearch index for dictionaries."""
     return client.index(MEILISEARCH_INDEX_NAME)
 
-def search_dictionary(query: str, limit: int = 10, use_transliteration: bool = True, context_size: str = "default", source: str = None):
+def search_dictionary(query: str, limit: int = 50, limit_per_source: int = 5, use_transliteration: bool = True, context_size: str = "default", source: str = None):
     """
     Search the dictionary index with typo tolerance.
     
     Args:
         query: The search term(s)
-        limit: Maximum number of results to return (default: 10)
+        limit: Maximum number of results to return (default: 50)
+        limit_per_source: Maximum number of results to return per dictionary source (default: 5)
         use_transliteration: Whether to apply transliteration (default: True)
         context_size: Size of context to return (default, expanded, full)
         source: Filter results by source dictionary (optional)
@@ -51,9 +52,9 @@ def search_dictionary(query: str, limit: int = 10, use_transliteration: bool = T
         
         # Increase the limit if source filtering is requested to ensure we have enough results to filter
         if source:
-            search_params["limit"] = 50  # Get more results to filter
+            search_params["limit"] = 100  # Get more results to filter
         else:
-            search_params["limit"] = limit
+            search_params["limit"] = min(100, limit * 2)  # Get enough results to apply per-source limiting
         
         if not use_transliteration:
             # Standard search without transliteration
@@ -85,6 +86,27 @@ def search_dictionary(query: str, limit: int = 10, use_transliteration: bool = T
                 
                 # Apply limit after filtering
                 result["hits"] = result["hits"][:limit]
+            else:
+                # Apply limit_per_source
+                source_counts = {}
+                filtered_hits = []
+                
+                for hit in result.get("hits", []):
+                    hit_source = hit.get("source", "")
+                    # Initialize counter for this source if not exists
+                    if hit_source not in source_counts:
+                        source_counts[hit_source] = 0
+                    
+                    # Add hit if under per-source limit
+                    if source_counts[hit_source] < limit_per_source:
+                        filtered_hits.append(hit)
+                        source_counts[hit_source] += 1
+                        
+                        # Stop if we've reached the total limit
+                        if len(filtered_hits) >= limit:
+                            break
+                
+                result["hits"] = filtered_hits
             
             return result
         else:
@@ -149,9 +171,30 @@ def search_dictionary(query: str, limit: int = 10, use_transliteration: bool = T
                 
                 merged_results["hits"] = filtered_hits
                 print(f"DEBUG: Post-filter hit count: {len(merged_results['hits'])}")
-            
-            # Limit the final results
-            merged_results["hits"] = merged_results["hits"][:limit]
+                
+                # Apply limit after filtering
+                merged_results["hits"] = merged_results["hits"][:limit]
+            else:
+                # Apply limit_per_source
+                source_counts = {}
+                filtered_hits = []
+                
+                for hit in merged_results.get("hits", []):
+                    hit_source = hit.get("source", "")
+                    # Initialize counter for this source if not exists
+                    if hit_source not in source_counts:
+                        source_counts[hit_source] = 0
+                    
+                    # Add hit if under per-source limit
+                    if source_counts[hit_source] < limit_per_source:
+                        filtered_hits.append(hit)
+                        source_counts[hit_source] += 1
+                        
+                        # Stop if we've reached the total limit
+                        if len(filtered_hits) >= limit:
+                            break
+                
+                merged_results["hits"] = filtered_hits
             
             # Process results to ensure proper context field
             process_search_results(merged_results, context_size)

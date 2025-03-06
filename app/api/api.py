@@ -91,7 +91,8 @@ async def general_exception_handler(request, exc):
 )
 async def search(
     query: str = Query(..., description="Search query (term or phrase, supports English, Russian, and Ossetian)"),
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of results to return (1-50)"),
+    limit: int = Query(50, ge=1, le=50, description="Maximum number of results to return (1-50)"),
+    limit_per_source: int = Query(5, ge=1, le=50, description="Maximum number of results to return per dictionary source"),
     transliteration: bool = Query(True, description="Enable transliteration between Latin and Cyrillic scripts for Ossetian terms"),
     context_size: str = Query("default", description="Size of context to return: 'default', 'expanded', or 'full'"),
     source: str = Query(None, description="Filter results by dictionary source (filename or part of it)")
@@ -113,7 +114,7 @@ async def search(
     
     try:
         # Perform search with transliteration option
-        result = search_dictionary(query, limit, use_transliteration=transliteration, context_size=context_size, source=source)
+        result = search_dictionary(query, limit, limit_per_source, use_transliteration=transliteration, context_size=context_size, source=source)
         
         # Extract and format results
         hits = result.get("hits", [])
@@ -182,7 +183,8 @@ async def search(
 )
 async def search_post(
     query: str = Body(..., embed=True, description="Search query (term or phrase, supports English, Russian, and Ossetian)"),
-    limit: int = Body(10, embed=True, description="Maximum number of results to return (1-50)"),
+    limit: int = Body(50, embed=True, description="Maximum number of results to return (1-50)"),
+    limit_per_source: int = Body(5, embed=True, description="Maximum number of results to return per dictionary source"),
     transliteration: bool = Body(True, embed=True, description="Enable transliteration between Latin and Cyrillic scripts for Ossetian terms"),
     context_size: str = Body("default", embed=True, description="Size of context to return: 'default', 'expanded', or 'full'"),
     source: str = Body(None, embed=True, description="Filter results by dictionary source (filename or part of it)")
@@ -211,7 +213,7 @@ async def search_post(
     
     try:
         # Perform search with transliteration option
-        result = search_dictionary(query, limit, use_transliteration=transliteration, context_size=context_size, source=source)
+        result = search_dictionary(query, limit, limit_per_source, use_transliteration=transliteration, context_size=context_size, source=source)
         
         # Extract and format results
         hits = result.get("hits", [])
@@ -279,7 +281,8 @@ async def search_post(
 )
 async def search_path(
     query: str = Path(..., description="Search query (term or phrase, supports English, Russian, and Ossetian)"),
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of results to return (1-50)"),
+    limit: int = Query(50, ge=1, le=50, description="Maximum number of results to return (1-50)"),
+    limit_per_source: int = Query(5, ge=1, le=50, description="Maximum number of results to return per dictionary source"),
     transliteration: bool = Query(True, description="Enable transliteration between Latin and Cyrillic scripts for Ossetian terms"),
     context_size: str = Query("default", description="Size of context to return: 'default', 'expanded', or 'full'"),
     source: str = Query(None, description="Filter results by dictionary source (filename or part of it)")
@@ -288,7 +291,7 @@ async def search_path(
     if not health_check():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"error": "Service unavailable", "detail": "Search engine is not responding"}
+            detail={"error": "Search engine is unavailable", "detail": "Meilisearch service is not responding"}
         )
 
     # Validate input
@@ -314,7 +317,7 @@ async def search_path(
     
     # Perform search with transliteration if enabled
     start_time = time.time()
-    result = search_dictionary(query, limit, use_transliteration=transliteration, context_size=context_size, source=source)
+    result = search_dictionary(query, limit, limit_per_source, use_transliteration=transliteration, context_size=context_size, source=source)
     end_time = time.time()
     
     # Calculate processing time in milliseconds

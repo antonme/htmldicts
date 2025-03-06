@@ -73,7 +73,16 @@ paths:
           required: false
           schema:
             type: integer
-            default: 10
+            default: 50
+            minimum: 1
+            maximum: 50
+        - name: limit_per_source
+          in: query
+          description: Maximum number of results to return per dictionary source
+          required: false
+          schema:
+            type: integer
+            default: 5
             minimum: 1
             maximum: 50
         - name: transliteration
@@ -177,7 +186,13 @@ paths:
                 limit:
                   type: integer
                   description: Maximum number of results to return (1-50)
-                  default: 10
+                  default: 50
+                  minimum: 1
+                  maximum: 50
+                limit_per_source:
+                  type: integer
+                  description: Maximum number of results to return per dictionary source
+                  default: 5
                   minimum: 1
                   maximum: 50
                 transliteration:
@@ -278,7 +293,16 @@ paths:
           required: false
           schema:
             type: integer
-            default: 10
+            default: 50
+            minimum: 1
+            maximum: 50
+        - name: limit_per_source
+          in: query
+          description: Maximum number of results to return per dictionary source
+          required: false
+          schema:
+            type: integer
+            default: 5
             minimum: 1
             maximum: 50
         - name: transliteration
